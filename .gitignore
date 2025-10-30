@@ -31,6 +31,8 @@ wheels/
 data/
 *.mat
 *.csv
+*.xlsx
+*.xls
 *.h5
 *.hdf5
 *.pkl
