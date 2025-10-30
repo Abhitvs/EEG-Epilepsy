@@ -1,0 +1,30 @@
+# Google Drive Dataset Configuration Example
+# Copy this file to datasets.yaml and fill in your Google Drive file IDs
+# 
+# Supported formats:
+# - Full URL: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+# - Direct URL: https://drive.google.com/uc?id=FILE_ID
+# - File ID only: FILE_ID
+#
+# Example:
+#   file_id: "1a2b3c4d5e6f7g8h9i0j"
+#   url: "https://drive.google.com/file/d/1a2b3c4d5e6f7g8h9i0j/view?usp=sharing"
+
+datasets:
+  patient_wise_mat:
+    # Patient-wise MATLAB format dataset
+    file_id: "YOUR_GOOGLE_DRIVE_FILE_ID_HERE"
+    output_filename: "patient_wise_data.mat"
+    enabled: true
+  
+  csv_dataset:
+    # CSV format dataset
+    file_id: "YOUR_GOOGLE_DRIVE_FILE_ID_HERE"
+    output_filename: "dataset.csv"
+    enabled: true
+  
+  delhi_hospital_mat:
+    # Delhi hospital MATLAB format dataset
+    file_id: "YOUR_GOOGLE_DRIVE_FILE_ID_HERE"
+    output_filename: "delhi_hospital_data.mat"
+    enabled: true
