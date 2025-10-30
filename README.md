@@ -8,18 +8,19 @@ EEG analysis project for epilepsy seizure detection and classification.
 EEG-Epilepsy/
 ├── data/
 │   └── raw/
-│       ├── patient_mat/           # Dataset 1: Patient-wise .mat files with filter variants
-│       ├── csv_eeg/               # Dataset 2: CSV files with channels + spectral features
-│       └── delhi_hospital_mat/    # Dataset 3: Delhi Hospital EEG data (.mat files)
+│       ├── delhi_hospital_mat/    # Dataset 3: Delhi Hospital EEG data (.mat files)
+│       ├── patient_wise_mat/      # Dataset 1: SNMC patient Excel files (.xlsx)
+│       └── csv_dataset/           # Dataset 2: CSV dataset
 ├── notebooks/
-│   └── dataset3_delhi_exploration.ipynb  # Exploratory analysis notebook
+│   ├── dataset1_snmc_exploration.ipynb    # SNMC dataset exploration
+│   └── dataset3_delhi_exploration.ipynb   # Delhi Hospital exploration
+├── scripts/
+│   └── download_datasets.py       # Download datasets from Google Drive
 ├── src/
 │   └── loaders/
 │       ├── __init__.py
-│       ├── dataset1_loader.py     # Patient-wise .mat loader
-│       ├── dataset2_loader.py     # CSV dataset loader
-│       └── dataset3_loader.py     # Delhi Hospital loader
-├── test_loaders.py
+│       ├── snmc_excel_loader.py   # Data loading utilities for Dataset 1 (SNMC)
+│       └── dataset3_loader.py     # Data loading utilities for Dataset 3 (Delhi)
 ├── requirements.txt
 └── README.md
 ```
@@ -38,6 +39,22 @@ pip install -r requirements.txt
 ```
 
 ## Datasets
+
+### Dataset 1: SNMC Patient-wise Excel Data
+
+Dataset 1 contains patient-wise EEG recordings in Excel format:
+- **Format**: Excel (.xlsx) files with multiple sheets
+- **Structure**: 12 patients × 4 books each = 48 files
+- **Naming**: Patient1_Book1.xlsx, Patient1_Book2.xlsx, etc.
+- **Channels**: 16 bipolar EEG channels (8 right, 8 left hemisphere)
+- **Seizure Info**:
+  - Patient 1 (ID 363) → Has seizures
+  - Patient 11 (ID 1306) → Has seizures
+  - All other patients → No seizures
+
+**Data Setup**: Place SNMC Excel files in `data/raw/patient_wise_mat/` directory.
+
+### Dataset 3: Delhi Hospital
 
 This project supports three types of EEG datasets:
 
@@ -60,13 +77,49 @@ EEG recordings in `.mat` format organized into three categories:
 - **Interictal**: Recordings between seizures
 - **Ictal**: Recordings during seizures
 
-**Data Setup**: Place `.mat` files in `data/raw/delhi_hospital_mat/` directory.
+**Data Setup**: Place Dataset 3 `.mat` files in the `data/raw/delhi_hospital_mat/` directory.
+
+## Downloading Datasets
+
+Use the download script to get the datasets from Google Drive:
+
+```bash
+# Download all datasets
+python scripts/download_datasets.py
+
+# Download specific dataset
+python scripts/download_datasets.py --dataset snmc
+python scripts/download_datasets.py --dataset delhi
+python scripts/download_datasets.py --dataset csv
+
+# List available datasets
+python scripts/download_datasets.py --list
+```
 
 ## Usage
 
 ### Exploratory Analysis
 
-To explore the Delhi Hospital dataset, open and run the Jupyter notebook:
+#### SNMC Patient Data (Dataset 1)
+
+To explore the SNMC patient-wise Excel dataset:
+
+```bash
+cd notebooks
+jupyter notebook dataset1_snmc_exploration.ipynb
+```
+
+The notebook demonstrates:
+- Loading Excel files with multiple sheets
+- Extracting patient metadata (seizure status)
+- Accessing time series and EEG channel data
+- Converting to NumPy arrays for analysis
+- Visualizing EEG signals
+- Comparing patients with and without seizures
+
+#### Delhi Hospital Data (Dataset 3)
+
+To explore the Delhi Hospital dataset:
 
 ```bash
 cd notebooks
@@ -83,61 +136,52 @@ The notebook includes:
 
 ### Programmatic Data Loading
 
-#### Dataset 1: Patient-wise .mat files
+#### SNMC Dataset (Excel Files)
 
 ```python
-from src.loaders import load_patient_mat, list_patient_files, has_seizure_data
+from src.loaders import (
+    load_patient_book,
+    load_patient_data,
+    list_available_snmc_files,
+    get_sheet_info,
+    extract_eeg_data,
+    has_seizures,
+)
 
 # List available patient files
-files = list_patient_files()
-print(f"Found patients: {list(files.keys())}")
+files = list_available_snmc_files()
+print(f"Found {len(files)} patients")
 
-# Load a specific patient's data
-data = load_patient_mat('Patient1', filter_type='alpha')
-print(f"Sampling rate: {data['metadata']['sampling_rate']} Hz")
-print(f"Has seizure: {data['metadata']['has_seizure']}")
-print(f"Data shape: {data['data'].shape}")
+# Check if patient has seizures
+print(f"Patient 1 has seizures: {has_seizures(1)}")
 
-# Check if patient has seizure data
-print(f"Patient1 has seizure: {has_seizure_data('Patient1')}")  # True
-print(f"Patient11 has seizure: {has_seizure_data('Patient11')}")  # True
+# Load all data for a patient (all 4 books)
+patient_data = load_patient_data(1)
+print(f"Patient {patient_data['patient_id']}: {patient_data['metadata']['num_books']} books")
+
+# Load a single book
+book_sheets = load_patient_book("data/raw/patient_wise_mat/Patient1_Book1.xlsx")
+print(f"Loaded {len(book_sheets)} sheets")
+
+# Extract EEG data from a sheet
+first_sheet = list(book_sheets.values())[0]
+time_series, eeg_data = extract_eeg_data(first_sheet)
+print(f"EEG data shape: {eeg_data.shape}")
 ```
 
-#### Dataset 2: CSV with spectral features
+#### Delhi Hospital Dataset (.mat Files)
 
 ```python
-from src.loaders import load_csv_eeg, list_csv_files, concatenate_csv_data
+from src.loaders import (
+    load_delhi_segment,
+    load_multiple_segments,
+    list_available_delhi_files,
+    get_segment_info,
+)
 
-# List available CSV files
-files = list_csv_files()
-print(f"Found {len(files)} CSV files")
-
-# Load a CSV file
-data = load_csv_eeg(files[0])
-print(f"Channels: {data['metadata']['n_channels']}")
-print(f"Samples: {data['metadata']['n_samples']}")
-print(f"Channel columns: {data['metadata']['channel_columns']}")
-print(f"Spectral features: {data['metadata']['spectral_columns']}")
-
-# Access data as DataFrame
-df = data['dataframe']
-print(df.head())
-
-# Access raw channels as NumPy array
-channels_data = data['channels_array']
-print(f"Shape: {channels_data.shape}")  # (n_samples, n_channels)
-```
-
-#### Dataset 3: Delhi Hospital
-
-```python
-from src.loaders import load_delhi_segment, list_available_files
-
-# List available files by category
-files = list_available_files()
-print(f"Pre-ictal: {len(files['pre_ictal'])}")
-print(f"Interictal: {len(files['interictal'])}")
-print(f"Ictal: {len(files['ictal'])}")
+# List available files
+files = list_available_delhi_files()
+print(f"Found {len(files['ictal'])} ictal segments")
 
 # Load a segment
 if files['ictal']:
@@ -149,17 +193,16 @@ if files['ictal']:
 
 ## Features
 
-- **Modular Loaders**: Three separate loaders for different dataset types
-- **Consistent API**: All loaders return data with consistent structure and metadata
-- **Robust Error Handling**: Graceful handling of missing files and format variations
-- **Rich Metadata**: Automatic extraction and attachment of sampling rates, labels, and file origins
-- **Flexible Data Access**: Support for both NumPy arrays and Pandas DataFrames
-- **Validation**: Built-in validation for file existence and data format
-- **Comprehensive Documentation**: Inline docstrings with usage examples
-- **Special Features**:
-  - **Dataset 1**: Automatic seizure detection for Patient1 and Patient11
-  - **Dataset 2**: Automatic channel and spectral feature identification
-  - **Dataset 3**: Automatic segment label detection (pre-ictal/interictal/ictal)
+- **Multiple Dataset Support**: 
+  - SNMC patient-wise Excel files (.xlsx)
+  - Delhi Hospital .mat files
+  - CSV dataset
+- **Robust Data Loading**: Handles various file formats with proper error handling
+- **Seizure Detection Metadata**: Identifies patients with seizures (Patient 1, Patient 11)
+- **Safeguards**: Graceful handling of missing data files
+- **Visualization**: Channel-wise time series plots and spectral analysis
+- **Statistical Analysis**: Basic and spectral statistics computation
+- **Extensible**: Clear guidance for adding advanced features
 
 ## Next Steps
 
@@ -179,3 +222,4 @@ See the exploration notebook for detailed suggestions on:
 - matplotlib >= 3.4.0
 - pandas >= 1.3.0
 - seaborn >= 0.11.0
+- openpyxl >= 3.0.0 (for Excel file support)
