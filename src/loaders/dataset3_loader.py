@@ -2,7 +2,23 @@
 Loader utilities for Dataset 3: Delhi Hospital EEG data.
 
 This module provides functions to load and process .mat files from the Delhi Hospital dataset.
-The dataset contains pre-ictal, interictal, and ictal segments.
+The dataset contains pre-ictal, interictal, and ictal segments (segmented and labeled).
+
+Usage Example:
+    >>> from src.loaders import load_delhi_segment, list_available_files
+    >>> 
+    >>> # List available files by category
+    >>> files = list_available_files()
+    >>> print(f"Pre-ictal: {len(files['pre_ictal'])}")
+    >>> print(f"Interictal: {len(files['interictal'])}")
+    >>> print(f"Ictal: {len(files['ictal'])}")
+    >>> 
+    >>> # Load a specific segment
+    >>> if files['ictal']:
+    ...     data = load_delhi_segment(files['ictal'][0])
+    ...     print(f"Data shape: {data['data'].shape}")
+    ...     print(f"Label: {data['metadata']['label']}")
+    ...     print(f"Sampling rate: {data['metadata']['sampling_rate']} Hz")
 """
 
 import os
@@ -57,10 +73,38 @@ def list_available_files(data_path: Optional[Union[str, Path]] = None) -> Dict[s
     return files
 
 
+def identify_label_from_filename(filename: str) -> str:
+    """
+    Identify the segment label (pre-ictal, interictal, ictal) from filename.
+    
+    Args:
+        filename: Name of the file.
+    
+    Returns:
+        Label string: 'pre_ictal', 'interictal', or 'ictal'.
+    
+    Example:
+        >>> identify_label_from_filename('preictal_segment_01.mat')
+        'pre_ictal'
+        >>> identify_label_from_filename('ictal_recording.mat')
+        'ictal'
+    """
+    filename_lower = filename.lower()
+    
+    if 'preictal' in filename_lower or 'pre_ictal' in filename_lower or 'pre-ictal' in filename_lower:
+        return 'pre_ictal'
+    elif 'interictal' in filename_lower or 'inter-ictal' in filename_lower:
+        return 'interictal'
+    elif 'ictal' in filename_lower:
+        return 'ictal'
+    
+    return 'unknown'
+
+
 def load_delhi_segment(
     file_path: Union[str, Path],
     verify: bool = True
-) -> Dict[str, np.ndarray]:
+) -> Dict[str, Union[np.ndarray, Dict]]:
     """
     Load a single .mat file segment from the Delhi Hospital dataset.
     
@@ -69,12 +113,23 @@ def load_delhi_segment(
         verify: Whether to verify the file exists before loading.
     
     Returns:
-        Dictionary containing the loaded data. The structure depends on the .mat file contents.
-        Typically includes 'data' key with shape (n_channels, n_samples).
+        Dictionary containing:
+            - 'data': NumPy array with EEG data (shape: n_channels x n_samples)
+            - 'metadata': Dict with sampling_rate, label, file_origin, and other metadata
+            - Additional keys from the .mat file
     
     Raises:
         FileNotFoundError: If the file doesn't exist and verify=True.
         ValueError: If the file cannot be loaded or has unexpected format.
+    
+    Example:
+        >>> data = load_delhi_segment('ictal_segment_01.mat')
+        >>> print(data['data'].shape)
+        (23, 4097)
+        >>> print(data['metadata']['label'])
+        ictal
+        >>> print(data['metadata']['sampling_rate'])
+        178.0
     """
     file_path = Path(file_path)
     
@@ -88,20 +143,76 @@ def load_delhi_segment(
         clean_data = {k: v for k, v in mat_data.items() if not k.startswith('__')}
         
         # Try to find the main data array
+        data_array = None
         if 'data' in clean_data:
             data_array = clean_data['data']
+        elif 'eeg' in clean_data:
+            data_array = clean_data['eeg']
+        elif 'signal' in clean_data:
+            data_array = clean_data['signal']
         elif len(clean_data) == 1:
             # If there's only one key, assume it's the data
             data_array = list(clean_data.values())[0]
         else:
-            # Return all available keys
-            data_array = None
+            # Find the largest 2D array
+            for key, value in clean_data.items():
+                if isinstance(value, np.ndarray) and len(value.shape) == 2:
+                    if data_array is None or value.size > data_array.size:
+                        data_array = value
         
-        result = clean_data.copy()
+        if data_array is None:
+            raise ValueError(f"Could not find data array in {file_path}")
         
-        # Ensure data is in the result
-        if data_array is not None and 'data' not in result:
-            result['data'] = data_array
+        # Extract or infer metadata
+        label = identify_label_from_filename(file_path.name)
+        
+        metadata = {
+            'label': label,
+            'file_origin': str(file_path),
+            'filename': file_path.name,
+        }
+        
+        # Try to extract sampling rate
+        sampling_rate = None
+        for key in ['sampling_rate', 'fs', 'srate', 'freq', 'frequency']:
+            if key in clean_data:
+                value = clean_data[key]
+                if isinstance(value, np.ndarray):
+                    sampling_rate = float(value.flat[0])
+                else:
+                    sampling_rate = float(value)
+                break
+        
+        # Default sampling rate if not found (common for Delhi dataset)
+        if sampling_rate is None:
+            sampling_rate = 178.0  # Common for Delhi Hospital dataset
+        
+        metadata['sampling_rate'] = sampling_rate
+        
+        # Try to extract labels/channels
+        labels = None
+        for key in ['labels', 'channels', 'channel_names']:
+            if key in clean_data:
+                labels = clean_data[key]
+                break
+        
+        if labels is not None:
+            metadata['labels'] = labels
+        
+        # Data shape information
+        metadata['n_channels'] = data_array.shape[0] if len(data_array.shape) >= 1 else 1
+        metadata['n_samples'] = data_array.shape[1] if len(data_array.shape) >= 2 else data_array.shape[0]
+        metadata['duration_seconds'] = metadata['n_samples'] / sampling_rate
+        
+        result = {
+            'data': data_array,
+            'metadata': metadata,
+        }
+        
+        # Add any additional data from the mat file
+        for key, value in clean_data.items():
+            if key not in ['data', 'eeg', 'signal'] and key not in result:
+                result[key] = value
         
         return result
         

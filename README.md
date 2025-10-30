@@ -56,7 +56,23 @@ Dataset 1 contains patient-wise EEG recordings in Excel format:
 
 ### Dataset 3: Delhi Hospital
 
-Dataset 3 contains EEG recordings in `.mat` format organized into three categories:
+This project supports three types of EEG datasets:
+
+### Dataset 1: Patient-wise .mat files
+
+Patient-specific EEG recordings with multiple filter variants (alpha, beta, gamma, delta, theta). Special handling for Patient1 and Patient11, which are known to contain seizure data.
+
+**Data Setup**: Place `.mat` files in `data/raw/patient_mat/` directory.
+
+### Dataset 2: CSV with spectral features
+
+CSV files containing 14 EEG channels plus spectral features (power in different frequency bands).
+
+**Data Setup**: Place `.csv` files in `data/raw/csv_eeg/` directory.
+
+### Dataset 3: Delhi Hospital
+
+EEG recordings in `.mat` format organized into three categories:
 - **Pre-ictal**: Recordings before seizure onset
 - **Interictal**: Recordings between seizures
 - **Ictal**: Recordings during seizures
@@ -168,11 +184,11 @@ files = list_available_delhi_files()
 print(f"Found {len(files['ictal'])} ictal segments")
 
 # Load a segment
-segment = load_delhi_segment(files['ictal'][0])
-print(get_segment_info(segment))
-
-# Load multiple segments
-segments = load_multiple_segments(files['pre_ictal'], max_segments=5)
+if files['ictal']:
+    data = load_delhi_segment(files['ictal'][0])
+    print(f"Data shape: {data['data'].shape}")
+    print(f"Label: {data['metadata']['label']}")
+    print(f"Sampling rate: {data['metadata']['sampling_rate']} Hz")
 ```
 
 ## Features
