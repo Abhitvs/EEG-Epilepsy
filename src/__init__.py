@@ -1,0 +1,1 @@
+"""EEG Epilepsy Analysis Package"""
