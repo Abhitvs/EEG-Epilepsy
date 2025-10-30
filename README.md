@@ -2,155 +2,224 @@
 
 EEG analysis project for epilepsy seizure detection and classification.
 
-## Project Overview
-
-This project provides tools and notebooks for analyzing EEG (Electroencephalography) data
-to detect and classify epileptic seizures. The project supports multiple datasets and
-includes robust data loading utilities, exploratory notebooks, and extensible analysis
-pipelines.
-
 ## Project Structure
 
 ```
 EEG-Epilepsy/
 ├── data/
-│   ├── raw/                       # Raw data files (not tracked in git)
-│   │   └── delhi_hospital_mat/    # Dataset 3: Delhi Hospital EEG data (.mat files)
-│   └── processed/                 # Processed/transformed data (not tracked in git)
-├── notebooks/                     # Jupyter notebooks for exploration and analysis
-├── src/                          # Source code
-│   └── loaders/                  # Data loading utilities
-├── models/                       # Trained models (not tracked in git)
-├── tests/                        # Unit tests
-├── .gitignore                    # Git ignore rules
-├── requirements.txt              # Python dependencies
-├── setup_project.py              # This setup script
-└── README.md                     # This file
+│   └── raw/
+│       ├── delhi_hospital_mat/    # Dataset 3: Delhi Hospital EEG data (.mat files)
+│       ├── patient_wise_mat/      # Dataset 1: SNMC patient Excel files (.xlsx)
+│       └── csv_dataset/           # Dataset 2: CSV dataset
+├── notebooks/
+│   ├── dataset1_snmc_exploration.ipynb    # SNMC dataset exploration
+│   └── dataset3_delhi_exploration.ipynb   # Delhi Hospital exploration
+├── scripts/
+│   └── download_datasets.py       # Download datasets from Google Drive
+├── src/
+│   └── loaders/
+│       ├── __init__.py
+│       ├── snmc_excel_loader.py   # Data loading utilities for Dataset 1 (SNMC)
+│       └── dataset3_loader.py     # Data loading utilities for Dataset 3 (Delhi)
+├── requirements.txt
+└── README.md
 ```
 
-## Getting Started
+## Installation
 
-### Prerequisites
-
-- Python >= 3.8
-- pip (Python package installer)
-- git
-
-### Installation
-
-1. **Clone this repository:**
-
+1. Clone this repository:
 ```bash
 git clone <repository-url>
 cd EEG-Epilepsy
 ```
 
-2. **Run the setup script to create the project structure:**
-
-```bash
-python setup_project.py
-```
-
-This script will:
-- Create all necessary directories (data/, notebooks/, src/, models/, tests/)
-- Generate configuration files (.gitignore, requirements.txt)
-- Be safe to run multiple times (idempotent)
-
-3. **Create and activate a virtual environment (recommended):**
-
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-4. **Install dependencies:**
-
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-### Dataset Setup
+## Datasets
 
-After setting up the environment, you'll need to download and place the datasets
-in the appropriate directories.
+### Dataset 1: SNMC Patient-wise Excel Data
 
-**For Dataset 3 (Delhi Hospital):**
+Dataset 1 contains patient-wise EEG recordings in Excel format:
+- **Format**: Excel (.xlsx) files with multiple sheets
+- **Structure**: 12 patients × 4 books each = 48 files
+- **Naming**: Patient1_Book1.xlsx, Patient1_Book2.xlsx, etc.
+- **Channels**: 16 bipolar EEG channels (8 right, 8 left hemisphere)
+- **Seizure Info**:
+  - Patient 1 (ID 363) → Has seizures
+  - Patient 11 (ID 1306) → Has seizures
+  - All other patients → No seizures
 
-Place `.mat` files in `data/raw/delhi_hospital_mat/` directory.
+**Data Setup**: Place SNMC Excel files in `data/raw/patient_wise_mat/` directory.
 
-A dataset download script will be provided separately to automate this process.
+### Dataset 3: Delhi Hospital
+
+This project supports three types of EEG datasets:
+
+### Dataset 1: Patient-wise .mat files
+
+Patient-specific EEG recordings with multiple filter variants (alpha, beta, gamma, delta, theta). Special handling for Patient1 and Patient11, which are known to contain seizure data.
+
+**Data Setup**: Place `.mat` files in `data/raw/patient_mat/` directory.
+
+### Dataset 2: CSV with spectral features
+
+CSV files containing 14 EEG channels plus spectral features (power in different frequency bands).
+
+**Data Setup**: Place `.csv` files in `data/raw/csv_eeg/` directory.
+
+### Dataset 3: Delhi Hospital
+
+EEG recordings in `.mat` format organized into three categories:
+- **Pre-ictal**: Recordings before seizure onset
+- **Interictal**: Recordings between seizures
+- **Ictal**: Recordings during seizures
+
+**Data Setup**: Place Dataset 3 `.mat` files in the `data/raw/delhi_hospital_mat/` directory.
+
+## Downloading Datasets
+
+Use the download script to get the datasets from Google Drive:
+
+```bash
+# Download all datasets
+python scripts/download_datasets.py
+
+# Download specific dataset
+python scripts/download_datasets.py --dataset snmc
+python scripts/download_datasets.py --dataset delhi
+python scripts/download_datasets.py --dataset csv
+
+# List available datasets
+python scripts/download_datasets.py --list
+```
 
 ## Usage
 
 ### Exploratory Analysis
 
-Launch Jupyter notebooks to explore the data:
+#### SNMC Patient Data (Dataset 1)
+
+To explore the SNMC patient-wise Excel dataset:
 
 ```bash
-jupyter notebook
+cd notebooks
+jupyter notebook dataset1_snmc_exploration.ipynb
 ```
 
-Navigate to the `notebooks/` directory and open the relevant exploration notebook.
+The notebook demonstrates:
+- Loading Excel files with multiple sheets
+- Extracting patient metadata (seizure status)
+- Accessing time series and EEG channel data
+- Converting to NumPy arrays for analysis
+- Visualizing EEG signals
+- Comparing patients with and without seizures
+
+#### Delhi Hospital Data (Dataset 3)
+
+To explore the Delhi Hospital dataset:
+
+```bash
+cd notebooks
+jupyter notebook dataset3_delhi_exploration.ipynb
+```
+
+The notebook includes:
+- Data loading with safeguards for missing data
+- Channel-wise EEG signal visualization
+- Basic statistical analysis (mean, variance)
+- Spectral band power analysis (delta, theta, alpha, beta, gamma)
+- Power spectral density comparisons
+- Guidance for extending the exploration
 
 ### Programmatic Data Loading
 
-Use the data loader utilities in your Python code:
+#### SNMC Dataset (Excel Files)
 
 ```python
-from src.loaders import load_delhi_segment, list_available_files
+from src.loaders import (
+    load_patient_book,
+    load_patient_data,
+    list_available_snmc_files,
+    get_sheet_info,
+    extract_eeg_data,
+    has_seizures,
+)
 
-# List available data files
-files = list_available_files()
+# List available patient files
+files = list_available_snmc_files()
+print(f"Found {len(files)} patients")
+
+# Check if patient has seizures
+print(f"Patient 1 has seizures: {has_seizures(1)}")
+
+# Load all data for a patient (all 4 books)
+patient_data = load_patient_data(1)
+print(f"Patient {patient_data['patient_id']}: {patient_data['metadata']['num_books']} books")
+
+# Load a single book
+book_sheets = load_patient_book("data/raw/patient_wise_mat/Patient1_Book1.xlsx")
+print(f"Loaded {len(book_sheets)} sheets")
+
+# Extract EEG data from a sheet
+first_sheet = list(book_sheets.values())[0]
+time_series, eeg_data = extract_eeg_data(first_sheet)
+print(f"EEG data shape: {eeg_data.shape}")
+```
+
+#### Delhi Hospital Dataset (.mat Files)
+
+```python
+from src.loaders import (
+    load_delhi_segment,
+    load_multiple_segments,
+    list_available_delhi_files,
+    get_segment_info,
+)
+
+# List available files
+files = list_available_delhi_files()
 print(f"Found {len(files['ictal'])} ictal segments")
 
-# Load a specific segment
-segment = load_delhi_segment(files['ictal'][0])
+# Load a segment
+if files['ictal']:
+    data = load_delhi_segment(files['ictal'][0])
+    print(f"Data shape: {data['data'].shape}")
+    print(f"Label: {data['metadata']['label']}")
+    print(f"Sampling rate: {data['metadata']['sampling_rate']} Hz")
 ```
-
-## Development
-
-### Running Tests
-
-```bash
-python -m pytest tests/
-```
-
-### Adding New Features
-
-1. Add source code to appropriate modules in `src/`
-2. Add corresponding tests in `tests/`
-3. Update documentation as needed
-4. Create exploration notebooks in `notebooks/` for new analyses
 
 ## Features
 
-- **Robust Data Loading**: Handles various .mat file formats with proper error handling
+- **Multiple Dataset Support**: 
+  - SNMC patient-wise Excel files (.xlsx)
+  - Delhi Hospital .mat files
+  - CSV dataset
+- **Robust Data Loading**: Handles various file formats with proper error handling
+- **Seizure Detection Metadata**: Identifies patients with seizures (Patient 1, Patient 11)
 - **Safeguards**: Graceful handling of missing data files
 - **Visualization**: Channel-wise time series plots and spectral analysis
-- **Extensible**: Modular design for easy extension
+- **Statistical Analysis**: Basic and spectral statistics computation
+- **Extensible**: Clear guidance for adding advanced features
+
+## Next Steps
+
+See the exploration notebook for detailed suggestions on:
+- Advanced feature extraction
+- Data preprocessing and filtering
+- Enhanced visualizations
+- Statistical analysis
+- Machine learning preparation
 
 ## Dependencies
 
-- **jupyter** >= 1.0.0 - Interactive notebook environment
-- **notebook** >= 6.4.0 - Jupyter notebook interface
-- **numpy** >= 1.21.0 - Numerical computing
-- **scipy** >= 1.7.0 - Scientific computing and signal processing
-- **matplotlib** >= 3.4.0 - Plotting and visualization
-- **pandas** >= 1.3.0 - Data manipulation and analysis
-- **seaborn** >= 0.11.0 - Statistical data visualization
-
-## Contributing
-
-1. Create a feature branch
-2. Make your changes
-3. Add/update tests
-4. Ensure all tests pass
-5. Submit a pull request
-
-## License
-
-[License information to be added]
-
-## Contact
-
-[Contact information to be added]
+- Python >= 3.8
+- jupyter >= 1.0.0
+- numpy >= 1.21.0
+- scipy >= 1.7.0
+- matplotlib >= 3.4.0
+- pandas >= 1.3.0
+- seaborn >= 0.11.0
+- openpyxl >= 3.0.0 (for Excel file support)

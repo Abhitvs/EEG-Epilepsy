@@ -28,27 +28,17 @@ wheels/
 *.ipynb_checkpoints/
 
 # Data files
-data/raw/
-data/processed/
+data/
 *.mat
 *.csv
-*.hdf5
+*.xlsx
+*.xls
 *.h5
+*.hdf5
 *.pkl
 *.pickle
 
-# Models
-models/*.h5
-models/*.pkl
-models/*.pt
-models/*.pth
-models/*.ckpt
-
-# Cache
-.cache/
-*.cache
-
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
@@ -56,13 +46,13 @@ models/*.ckpt
 *~
 .DS_Store
 
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
 # Virtual environments
 venv/
 ENV/
 env/
 .venv
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
